@@ -10,20 +10,16 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
 using System.Runtime.Remoting.Messaging;
 
-
-
 namespace Bot1
 {
     internal class Bot1
     {
         private static Dictionary<long, State> userState;
-        private static Dictionary<long, StudentInfo> studentInfo;
 
         static void Main(string[] args)
         {
             var botClient = new TelegramBotClient("6635411143:AAGgN4ZPdhcjcd0Mw27_XCjSVQxaHAtwyw8");
-            userState = new Dictionary<long, State>();
-            studentInfo = new Dictionary<long, StudentInfo>();
+            userState = new Dictionary<long, State>();    
 
             botClient.StartReceiving(Update, Error);
             Database.Connect();
@@ -43,69 +39,24 @@ namespace Bot1
                     await botClient.SendTextMessageAsync(message.Chat.Id, "Введите команду /start");
                     return;
                 }
+               
+                await HandleStart(botClient, update, message);
+                await StudentTeacher(botClient, update, message);
+                await Student.RegistrationStudent(botClient, update, userState);
 
-                if (message.Text == "/start" && userState[message.Chat.Id] == State.WaitingStart) // Команда /start
+                if (message.Text == "Преподаватель" && userState[message.Chat.Id] == State.WaitingButton)
                 {
-                    await HandleStart(botClient, update, message);
-                }
+      
 
-                if (userState[message.Chat.Id] == State.WaitingName) // Запрос имени пользователя
-                {
-                    studentInfo[message.Chat.Id].Name = message.Text;
-                    userState[message.Chat.Id] = State.WaitingLastName;
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "Введите вашу фамилию: ");
-                    return;
-                }
-
-                if (userState[message.Chat.Id] == State.WaitingLastName) // Запрос фамилии пользователя
-                {
-                    studentInfo[message.Chat.Id].LastName = message.Text;
-                    userState[message.Chat.Id] = State.WaitingStudentClass;
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "Введите ваш класс: ");
-                    return;
-                }
-
-                if (userState[message.Chat.Id] == State.WaitingStudentClass) // Запрос класса пользователя
-                {
-                    studentInfo[message.Chat.Id].StudentClass = int.Parse(message.Text);
-                    userState[message.Chat.Id] = State.WaitingPhoneNumber;
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "Введите ваш номер телефона: ");
-                    return;
-                }
-
-                if(userState[message.Chat.Id] == State.WaitingPhoneNumber) // Запрос номера телефона пользователя
-                {
-                    studentInfo[message.Chat.Id].PhoneNumber = message.Text;
-                    userState[message.Chat.Id] = State.WaitingDescription;
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "Расскажите немного о себе: ");
-                    return;
-                }
-
-                if (userState[message.Chat.Id] == State.WaitingDescription) // Запрос информации о пользователи
-                {
-                    studentInfo[message.Chat.Id].Description = message.Text;
-                    userState[message.Chat.Id] = State.WaitingButton;
-                    return;
-                }
-
-                if (message.Text == "Регистрация" && userState[message.Chat.Id] == State.WaitingButton) // Регистрация
-                {
-                    studentInfo[message.Chat.Id] = new StudentInfo();
-                    studentInfo[message.Chat.Id].ChatId = message.Chat.Id;
-                    studentInfo[message.Chat.Id].TgName = message.Chat.Username;
-                    await StudentTeacher(botClient, update, message);
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "Введите ваше имя: ");
-                    userState[message.Chat.Id] = State.WaitingName;
-                    return;
                 }
                 
-                if (message.Text == "Информация о проекте") // Информация о проекте
+                if (message.Text == "Информация о проекте" && userState[message.Chat.Id] == State.WaitingButton) // Информация о проекте
                 {
                     await botClient.SendTextMessageAsync(message.Chat.Id, $"Бот \"Репетиторы здесь!\" был создан для поиска репетитора по всей стране.\n Очное и дистанционное образование уверенно использется в нашей жизни, поэтому Мы собираем преподавателей из разных сфер в одном месте.\n\n 🔥 Удобный поиск репетиторов с различными форматами обучения. \n 🔥 Помощь в написании контрольных и самостоятельных работ. \n 🔥 Проверенные репетиторы со всей страны.");
                     return;
                 }
 
-                if (message.Text == "Поделиться ботом") // Поделиться ботом
+                if (message.Text == "Поделиться ботом" && userState[message.Chat.Id] == State.WaitingButton) // Поделиться ботом
                 {
                     await botClient.SendTextMessageAsync(message.Chat.Id, $"Мы будем рады, если Вы поделитесь нашим ботом с друзьями!\n\nСсылка на Бота: @Repetitors_here_bot");
                     return;
@@ -117,7 +68,7 @@ namespace Bot1
 
         async static Task HandleStart(ITelegramBotClient botClient, Update update, Message message) // Кнопки при вводе команды /start
         {
-            if (message.Text == "/start")
+            if (message.Text == "/start" && userState[message.Chat.Id] == State.WaitingStart)
             {
                 var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
@@ -128,7 +79,7 @@ namespace Bot1
                 {
                     ResizeKeyboard = true
                 };
-                await botClient.SendTextMessageAsync(message.Chat.Id, $"Здравствуйте, {message.Chat.Username}! Выберите соотвествующую кнопку:", replyMarkup: replyKeyboard);
+                await botClient.SendTextMessageAsync(message.Chat.Id, $"Здравствуйте, {message.Chat.Username}! Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
                 userState[update.Message.Chat.Id] = State.WaitingButton;
                 return;
             }
@@ -136,6 +87,10 @@ namespace Bot1
 
         async static Task StudentTeacher(ITelegramBotClient botClient, Update update, Message message) // Кнопки при нажатии Регистрация
         {
+            if (message.Text != "Регистрация" || userState[message.Chat.Id] != State.WaitingButton)
+            {
+                return;   
+            }
             var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
                     {
@@ -144,7 +99,7 @@ namespace Bot1
             {
                 ResizeKeyboard = true
             };
-            await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соотвествующую кнопку:", replyMarkup: replyKeyboard);
+            await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
             userState[update.Message.Chat.Id] = State.WaitingButton;
             return;
         }
@@ -153,17 +108,6 @@ namespace Bot1
         {
             
         }
-    }
-
-    class StudentInfo
-    {
-        public long ChatId;
-        public string TgName;
-        public string Name;
-        public string LastName;
-        public int StudentClass;
-        public string PhoneNumber;
-        public string Description;
     }
 
     class TeacherInfo
