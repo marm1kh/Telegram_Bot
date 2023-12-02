@@ -13,7 +13,7 @@ namespace Bot1
 {
     class Student
     {
-        private static Dictionary<long, StudentInfo> studentInfo = new Dictionary<long, StudentInfo>();
+        public static Dictionary<long, StudentInfo> studentInfo = new Dictionary<long, StudentInfo>();
 
         async static public Task RegistrationStudent(ITelegramBotClient botClient, Update update, Dictionary<long, State> userState)
         {
@@ -32,7 +32,6 @@ namespace Bot1
 
             if (userState[message.Chat.Id] == State.WaitingName) // Запрос имени пользователя
             {
-                Console.WriteLine(message.Text);
                 studentInfo[message.Chat.Id].Name = message.Text;
                 userState[message.Chat.Id] = State.WaitingLastName;
                 await botClient.SendTextMessageAsync(message.Chat.Id, "Введите вашу фамилию: ");
@@ -66,20 +65,42 @@ namespace Bot1
             if (userState[message.Chat.Id] == State.WaitingDescription) // Запрос информации о пользователи
             {
                 studentInfo[message.Chat.Id].Description = message.Text;
-                userState[message.Chat.Id] = State.WaitingButton;
+                userState[message.Chat.Id] = State.WaitingDataBase;
                 return;
             }
         }
 
-        class StudentInfo
+        async static public Task SendInformation(ITelegramBotClient botClient, Update update, Dictionary<long, State> userState)
         {
-            public long ChatId;
-            public string TgName;
-            public string Name;
-            public string LastName;
-            public int StudentClass;
-            public string PhoneNumber;
-            public string Description;
+            var message = update.Message;
+
+            if (userState[message.Chat.Id] == State.WaitingDataBase) // Отправка данных в базу данных и возвращение в начальное меню
+            { 
+                await Database.AddStudent(studentInfo, message);
+                var replyKeyboard = new ReplyKeyboardMarkup(
+                    new[]
+                    {
+                        new KeyboardButton[] {"Регистрация", "Авторизация" },
+                        new KeyboardButton[] {"Информация о проекте", "Поделиться ботом" }
+                    })
+                {
+                    ResizeKeyboard = true
+                };
+                await botClient.SendTextMessageAsync(message.Chat.Id, $"Регистрация прошла успешно!", replyMarkup: replyKeyboard);
+                userState[update.Message.Chat.Id] = State.WaitingButton;
+                return;
+            }
         }
+    }
+
+    class StudentInfo
+    {
+        public long ChatId;
+        public string TgName;
+        public string Name;
+        public string LastName;
+        public int StudentClass;
+        public string PhoneNumber;
+        public string Description;
     }
 }

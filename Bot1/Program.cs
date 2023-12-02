@@ -22,7 +22,6 @@ namespace Bot1
             userState = new Dictionary<long, State>();    
 
             botClient.StartReceiving(Update, Error);
-            Database.Connect();
             Console.ReadLine();
         }
 
@@ -43,6 +42,7 @@ namespace Bot1
                 await HandleStart(botClient, update, message);
                 await StudentTeacher(botClient, update, message);
                 await Student.RegistrationStudent(botClient, update, userState);
+                await Student.SendInformation(botClient, update, userState);
 
                 if (message.Text == "Преподаватель" && userState[message.Chat.Id] == State.WaitingButton)
                 {
@@ -91,17 +91,27 @@ namespace Bot1
             {
                 return;   
             }
-            var replyKeyboard = new ReplyKeyboardMarkup(
+
+            if (Database.CheckUser(message) == false)
+            {
+                var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
                     {
                         new KeyboardButton[] {"Ученик", "Преподаватель" },
                     })
+                {
+                    ResizeKeyboard = true
+                };
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
+                userState[update.Message.Chat.Id] = State.WaitingButton;
+                return;
+            }
+            else
             {
-                ResizeKeyboard = true
-            };
-            await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
-            userState[update.Message.Chat.Id] = State.WaitingButton;
-            return;
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Вы уже зарегистрированы.");
+                userState[update.Message.Chat.Id] = State.WaitingButton;
+                return;
+            }
         }
 
     async static Task Error(ITelegramBotClient botClient, Exception exception, CancellationToken token)
@@ -131,6 +141,7 @@ namespace Bot1
         WaitingStudentClass,
         WaitingPhoneNumber,
         WaitingDescription,
+        WaitingDataBase
     }
 
     
