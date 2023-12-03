@@ -26,19 +26,19 @@ namespace Bot1
                 studentInfo[message.Chat.Id].ChatId = message.Chat.Id;
                 studentInfo[message.Chat.Id].TgName = message.Chat.Username;
                 await botClient.SendTextMessageAsync(message.Chat.Id, "Введите ваше имя: ", replyMarkup: new ReplyKeyboardRemove());
-                userState[message.Chat.Id] = State.WaitingName;
+                userState[message.Chat.Id] = State.WaitingNameStudent;
                 return;
             }
 
-            if (userState[message.Chat.Id] == State.WaitingName) // Запрос имени пользователя
+            if (userState[message.Chat.Id] == State.WaitingNameStudent) // Запрос имени пользователя
             {
                 studentInfo[message.Chat.Id].Name = message.Text;
-                userState[message.Chat.Id] = State.WaitingLastName;
+                userState[message.Chat.Id] = State.WaitingLastNameStudent;
                 await botClient.SendTextMessageAsync(message.Chat.Id, "Введите вашу фамилию: ");
                 return;
             }
 
-            if (userState[message.Chat.Id] == State.WaitingLastName) // Запрос фамилии пользователя
+            if (userState[message.Chat.Id] == State.WaitingLastNameStudent) // Запрос фамилии пользователя
             {
                 studentInfo[message.Chat.Id].LastName = message.Text;
                 userState[message.Chat.Id] = State.WaitingStudentClass;
@@ -57,24 +57,24 @@ namespace Bot1
             if (userState[message.Chat.Id] == State.WaitingPhoneNumber) // Запрос номера телефона пользователя
             {
                 studentInfo[message.Chat.Id].PhoneNumber = message.Text;
-                userState[message.Chat.Id] = State.WaitingDescription;
+                userState[message.Chat.Id] = State.WaitingDescriptionStudent;
                 await botClient.SendTextMessageAsync(message.Chat.Id, "Расскажите немного о себе: ");
                 return;
             }
 
-            if (userState[message.Chat.Id] == State.WaitingDescription) // Запрос информации о пользователи
+            if (userState[message.Chat.Id] == State.WaitingDescriptionStudent) // Запрос информации о пользователи
             {
                 studentInfo[message.Chat.Id].Description = message.Text;
-                userState[message.Chat.Id] = State.WaitingDataBase;
+                userState[message.Chat.Id] = State.WaitingDataBaseStudent;
                 return;
             }
         }
 
-        async static public Task SendInformation(ITelegramBotClient botClient, Update update, Dictionary<long, State> userState)
+        async static public Task SendInformationStudent(ITelegramBotClient botClient, Update update, Dictionary<long, State> userState)
         {
             var message = update.Message;
 
-            if (userState[message.Chat.Id] == State.WaitingDataBase) // Отправка данных в базу данных и возвращение в начальное меню
+            if (userState[message.Chat.Id] == State.WaitingDataBaseStudent) // Отправка данных в базу данных и возвращение в начальное меню
             { 
                 await Database.AddStudent(studentInfo, message);
                 var replyKeyboard = new ReplyKeyboardMarkup(

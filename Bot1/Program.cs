@@ -42,13 +42,9 @@ namespace Bot1
                 await HandleStart(botClient, update, message);
                 await StudentTeacher(botClient, update, message);
                 await Student.RegistrationStudent(botClient, update, userState);
-                await Student.SendInformation(botClient, update, userState);
-
-                if (message.Text == "Преподаватель" && userState[message.Chat.Id] == State.WaitingButton)
-                {
-      
-
-                }
+                await Student.SendInformationStudent(botClient, update, userState);
+                await Teacher.RegistrationTeacher(botClient, update, userState);
+                await Teacher.SendInformationTeacher(botClient, update, userState);
                 
                 if (message.Text == "Информация о проекте" && userState[message.Chat.Id] == State.WaitingButton) // Информация о проекте
                 {
@@ -92,7 +88,9 @@ namespace Bot1
                 return;   
             }
 
-            if (Database.CheckUser(message) == false)
+            var tableName = Database.CheckUser(botClient, message);
+
+            if (tableName is null)
             {
                 var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
@@ -108,7 +106,7 @@ namespace Bot1
             }
             else
             {
-                await botClient.SendTextMessageAsync(message.Chat.Id, "Вы уже зарегистрированы.");
+                await botClient.SendTextMessageAsync(message.Chat.Id, $"Вы уже зарегистрированы как {tableName}"); 
                 userState[update.Message.Chat.Id] = State.WaitingButton;
                 return;
             }
@@ -120,30 +118,22 @@ namespace Bot1
         }
     }
 
-    class TeacherInfo
-    {
-        public long ChatId;
-        public string TgName;
-        public string Name;
-        public string LastName;
-        public string Subject;
-        public string Description;
-        public string FixTime;
-        public string Price;
-    }
-
     public enum State
     {
         WaitingStart,
         WaitingButton,
-        WaitingName,
-        WaitingLastName,
+        WaitingNameStudent,
+        WaitingNameTeacher,
+        WaitingLastNameStudent,
+        WaitingLastNameTeacher,
         WaitingStudentClass,
         WaitingPhoneNumber,
-        WaitingDescription,
-        WaitingDataBase
+        WaitingDescriptionStudent,
+        WaitingDescriptionTeacher,
+        WaitingDataBaseStudent,
+        WaitingDataBaseTeacher,
+        WaitingSubject,
+        WaitingFixTime,
+        WaitingPrice
     }
-
-    
-
 }
