@@ -222,12 +222,35 @@ namespace Bot1
             return new Tuple<List<string>, List<string>, List<string>, List<string>>(tg_name_s, name_s, telephone_number_s, description_s);
         }
 
-        public static long GetChatIdByUsername(string username)
+        public static long GetChatIdByUsernameTeachers(string username)
         {
             using (var conn = new NpgsqlConnection(connectionString))
             {
                 conn.Open();
                 using (var cmd = new NpgsqlCommand("SELECT chat_id FROM teachers WHERE tg_name_t = @username", conn))
+                {
+                    cmd.Parameters.AddWithValue("username", username);
+                    using (NpgsqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return reader.GetInt64(0);
+                        }
+                        else
+                        {
+                            return 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        public static long GetChatIdByUsernameStudents(string username)
+        {
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                conn.Open();
+                using (var cmd = new NpgsqlCommand("SELECT chat_id FROM students WHERE tg_name_s = @username", conn))
                 {
                     cmd.Parameters.AddWithValue("username", username);
                     using (NpgsqlDataReader reader = cmd.ExecuteReader())

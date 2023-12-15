@@ -47,6 +47,7 @@ namespace Bot1
                 await Teacher.RegistrationTeacher(botClient, update, userState);
                 await Teacher.SendInformationTeacher(botClient, update, userState);
                 await BotOnMessage(botClient, update, message);
+                await SendMessageStudent(botClient, update, message);
                 await FindTeacher(botClient, update, message);
                 await CheckAccountT(botClient, update, message);
                 await CheckAccountS(botClient, update, message);
@@ -81,7 +82,7 @@ namespace Bot1
                         var replyKeyboard = new ReplyKeyboardMarkup(
                             new[]
                             {
-                                new KeyboardButton[] {"Удалить аккаунт"},
+                                new KeyboardButton[] { "Написать ученику", "Удалить аккаунт"},
                                 new KeyboardButton[] { "Информация о проекте", "Поделиться ботом" },
                                 new KeyboardButton[] { "Просмотр Вашего аккаунта" }
                             })
@@ -207,14 +208,62 @@ namespace Bot1
 
                 await botClient.SendTextMessageAsync(message.Chat.Id, "Список преподавателей:");
                 await botClient.SendTextMessageAsync(message.Chat.Id, allMessages);
-                await botClient.SendTextMessageAsync(message.Chat.Id, "Напишите @Имя_пользователя *сообщение преподавателю* для связи с преподавателем.");
-                userState[update.Message.Chat.Id] = State.WaitingMessage;
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Напишите @Имя_пользователя *сообщение преподавателю* для связи с преподавателем. Для возвращения в главное меню напишите /exit", replyMarkup: new ReplyKeyboardRemove());
+                userState[update.Message.Chat.Id] = State.WaitingMessageStudent;
+                return;
+            }
+        }
+
+        async static Task SendMessageStudent(ITelegramBotClient botClient, Update update, Message message) // Написать ученику
+        {
+            if (message.Text == "Написать ученику")
+            {
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Напишите @Имя_пользователя *сообщение ученику* для связи с преподавателем. Для возвращения в главное меню напишите /exit", replyMarkup: new ReplyKeyboardRemove());
+                userState[update.Message.Chat.Id] = State.WaitingMessageTeacher;
                 return;
             }
 
+            if (userState[update.Message.Chat.Id] == State.WaitingMessageTeacher)
+            {
+                if (message.Text == "/exit")
+                {
+                    var replyKeyboard = new ReplyKeyboardMarkup(
+                            new[]
+                            {
+                                new KeyboardButton[] { "Написать ученику", "Удалить аккаунт"},
+                                new KeyboardButton[] { "Информация о проекте", "Поделиться ботом" },
+                                new KeyboardButton[] { "Просмотр Вашего аккаунта" }
+                            })
+                    {
+                        ResizeKeyboard = true
+                    };
+                    await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
+                    userState[update.Message.Chat.Id] = State.WaitingButton;
+                    return;
+                }
 
+                string[] messageParts = message.Text.Split(' ');
+
+
+                if (messageParts.Length >= 2)
+                {
+                    string username = messageParts[0];
+                    string message2 = String.Join(" ", messageParts.Skip(1).ToArray());
+
+                    long chatId = Database.GetChatIdByUsernameStudents(username);
+                    if (chatId != 0)
+                    {
+                        await botClient.SendTextMessageAsync(chatId, $"Message from {message.From.Username}: {message2}");
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(message.Chat.Id, "User not found");
+                    }
+                }
+                userState[update.Message.Chat.Id] = State.WaitingMessageTeacher;
+            }
         }
-        
+
         async static Task CheckAccountT(ITelegramBotClient botClient, Update update, Message message) // Просмотр аккаунта (Преподавателя)
         {
             if (message.Text == "Просмотр Вашего аккаунта")
@@ -274,10 +323,21 @@ namespace Bot1
         async static Task BotOnMessage(ITelegramBotClient botClient, Update update, Message message)
         {
 
-            if (userState[update.Message.Chat.Id] == State.WaitingMessage)
+            if (userState[update.Message.Chat.Id] == State.WaitingMessageStudent)
             {
                 if (message.Text == "/exit")
                 {
+                    var replyKeyboard = new ReplyKeyboardMarkup(
+                            new[]
+                            {
+                                new KeyboardButton[] { "Найти преподавателя" },
+                                new KeyboardButton[] { "Удалить аккаунт", "Поделиться ботом" },
+                                new KeyboardButton[] { "Просмотр аккаунта" }
+                            })
+                    {
+                        ResizeKeyboard = true
+                    };
+                    await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
                     userState[update.Message.Chat.Id] = State.WaitingButton;
                     return;
                 }
@@ -290,7 +350,7 @@ namespace Bot1
                     string username = messageParts[0];
                     string message2 = String.Join(" ", messageParts.Skip(1).ToArray());
 
-                    long chatId =  Database.GetChatIdByUsername(username);
+                    long chatId =  Database.GetChatIdByUsernameTeachers(username);
                     if (chatId != 0)
                     {
                         await botClient.SendTextMessageAsync(chatId, $"Message from {message.From.Username}: {message2}");
@@ -300,7 +360,7 @@ namespace Bot1
                         await botClient.SendTextMessageAsync(message.Chat.Id, "User not found");
                     }
                 }
-                userState[update.Message.Chat.Id] = State.WaitingMessage;
+                userState[update.Message.Chat.Id] = State.WaitingMessageStudent;
             }
             
         }
@@ -332,6 +392,7 @@ namespace Bot1
         WaitingSubject,
         WaitingFixTime,
         WaitingPrice,
-        WaitingMessage
+        WaitingMessageStudent,
+        WaitingMessageTeacher
     }
 }
