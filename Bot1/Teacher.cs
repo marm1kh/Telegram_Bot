@@ -87,8 +87,9 @@ namespace Bot1
                 var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
                     {
-                        new KeyboardButton[] {"Регистрация", "Авторизация" },
-                        new KeyboardButton[] {"Информация о проекте", "Поделиться ботом" }
+                        new KeyboardButton[] {"Удалить аккаунт"},
+                        new KeyboardButton[] {"Информация о проекте", "Поделиться ботом"},
+                        new KeyboardButton[] { "Просмотр Вашего аккаунта" }
                     })
                 {
                     ResizeKeyboard = true

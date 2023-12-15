@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,7 +29,7 @@ namespace Bot1
                     cmd.Parameters.AddWithValue("class_st", studentInfo[message.Chat.Id].StudentClass);
                     cmd.Parameters.AddWithValue("description_st", studentInfo[message.Chat.Id].Description);
                     cmd.Parameters.AddWithValue("telephone_number_st", studentInfo[message.Chat.Id].PhoneNumber);
-                    cmd.Parameters.AddWithValue("tg_name_st", studentInfo[message.Chat.Id].TgName);
+                    cmd.Parameters.AddWithValue("tg_name_st", "@" + studentInfo[message.Chat.Id].TgName);
                     cmd.Parameters.AddWithValue("chat_id_st", studentInfo[message.Chat.Id].ChatId);
 
                     cmd.ExecuteNonQuery();
@@ -52,12 +53,12 @@ namespace Bot1
                     cmd.Parameters.AddWithValue("description_te", teacherInfo[message.Chat.Id].Description);
                     cmd.Parameters.AddWithValue("fix_time_te", TimeSpan.Parse(teacherInfo[message.Chat.Id].FixTime));
                     cmd.Parameters.AddWithValue("price_te", teacherInfo[message.Chat.Id].Price);
-                    cmd.Parameters.AddWithValue("tg_name_te", teacherInfo[message.Chat.Id].TgName);
+                    cmd.Parameters.AddWithValue("tg_name_te", "@" + teacherInfo[message.Chat.Id].TgName);
                     cmd.Parameters.AddWithValue("chat_id_te", teacherInfo[message.Chat.Id].ChatId);
 
                     cmd.ExecuteNonQuery();
                 }
-            } 
+            }
             return;
         }
 
@@ -83,6 +84,163 @@ namespace Bot1
                         return tableName;
                     }
                     return null;
+                }
+            }
+        }
+
+        public static async Task DeleteUser(ITelegramBotClient botClient, Message message) // Удаляем профиль пользователя
+        {
+            var chat_id = message.Chat.Id;
+            string sql = @"delete from students where chat_id = @chat_id;
+                           delete from teachers where chat_id = @chat_id;";
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.AddWithValue("chat_id", chat_id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            return;
+        }
+
+        public static Tuple<List<string>, List<string>, List<string>, List<TimeSpan>, List<int>, List<string>> ListTeachers(ITelegramBotClient botClient)
+        {
+            string sql = "SELECT tg_name_t, name_t, subject, fix_time, price, description_t FROM teachers";
+
+            List<string> tg_name_t = new List<string>();
+            List<string> name_t = new List<string>();
+            List<string> subject = new List<string>();
+            List<TimeSpan> fix_time = new List<TimeSpan>();
+            List<int> price = new List<int>();
+            List<string> description_t = new List<string>();
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand cmd = new NpgsqlCommand(sql, connection))
+                {
+                    NpgsqlDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+
+                    if (reader.HasRows)
+                    {
+                        while (reader.Read())
+                        {
+                            tg_name_t.Add(reader.GetString(0));
+                            name_t.Add(reader.GetString(1));
+                            subject.Add(reader.GetString(2));
+                            fix_time.Add(reader.GetTimeSpan(3));
+                            price.Add(reader.GetInt32(4));
+                            description_t.Add(reader.GetString(5));
+                        }
+                    }
+                }
+            }
+            return new Tuple<List<string>, List<string>, List<string>, List<TimeSpan>, List<int>, List<string>>(tg_name_t, name_t, subject, fix_time, price, description_t);
+        }
+
+
+        public static Tuple<List<string>, List<string>, List<string>, List<TimeSpan>, List<int>, List<string>> CheckTAccount(ITelegramBotClient botClient, Message message) // Просмотр аккаунта препродавателя
+        {
+            var chat_id = message.Chat.Id;
+            string sql = @"select tg_name_t, name_t, subject, fix_time, price, description_t
+                           from teachers
+                           where chat_id = @chat_id";
+
+            List<string> tg_name_t = new List<string>();
+            List<string> name_t = new List<string>();
+            List<string> subject = new List<string>();
+            List<TimeSpan> fix_time = new List<TimeSpan>();
+            List<int> price = new List<int>();
+            List<string> description_t = new List<string>();
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.AddWithValue("chat_id", chat_id);
+                    NpgsqlDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+
+                    if (reader.HasRows)
+                    {
+                        while (reader.Read())
+                        {
+                            tg_name_t.Add(reader.GetString(0));
+                            name_t.Add(reader.GetString(1));
+                            subject.Add(reader.GetString(2));
+                            fix_time.Add(reader.GetTimeSpan(3));
+                            price.Add(reader.GetInt32(4));
+                            description_t.Add(reader.GetString(5));
+                        }
+                    }
+                }
+            }
+            return new Tuple<List<string>, List<string>, List<string>, List<TimeSpan>, List<int>, List<string>>(tg_name_t, name_t, subject, fix_time, price, description_t);
+        }
+
+
+
+        public static Tuple<List<string>, List<string>, List<string>, List<string>> CheckSAccount(ITelegramBotClient botClient, Message message) // Просмотр аккаунта ученика
+        {
+            var chat_id = message.Chat.Id;
+            string sql = @"select name_s, description_s, telephone_number_s, tg_name_s
+                           from students
+                           where chat_id = @chat_id";
+
+            List<string> tg_name_s = new List<string>();
+            List<string> name_s = new List<string>();
+            List<string> telephone_number_s = new List<string>();
+            List<string> description_s = new List<string>();
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.AddWithValue("chat_id", chat_id);
+                    NpgsqlDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+
+                    if (reader.HasRows)
+                    {
+                        while (reader.Read())
+                        {
+                            name_s.Add(reader.GetString(0));
+                            description_s.Add(reader.GetString(1));
+                            telephone_number_s.Add(reader.GetString(2));
+                            tg_name_s.Add(reader.GetString(3));
+                        }
+                    }
+                }
+            }
+            return new Tuple<List<string>, List<string>, List<string>, List<string>>(tg_name_s, name_s, telephone_number_s, description_s);
+        }
+
+        public static int GetChatIdByUsername(string username)
+        {
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                conn.Open();
+                using (var cmd = new NpgsqlCommand("SELECT chat_id FROM teachers WHERE tg_name_t = @username", conn))
+                {
+                    cmd.Parameters.AddWithValue("username", username);
+                    using (NpgsqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return reader.GetInt64(0);
+                        }
+                        else
+                        {
+                            return 0;
+                        }
+                    }
                 }
             }
         }

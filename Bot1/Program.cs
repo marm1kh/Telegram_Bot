@@ -9,6 +9,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.Enums;
 using System.Runtime.Remoting.Messaging;
+using System.Diagnostics;
 
 namespace Bot1
 {
@@ -19,7 +20,7 @@ namespace Bot1
         static void Main(string[] args)
         {
             var botClient = new TelegramBotClient("6635411143:AAGgN4ZPdhcjcd0Mw27_XCjSVQxaHAtwyw8");
-            userState = new Dictionary<long, State>();    
+            userState = new Dictionary<long, State>();
 
             botClient.StartReceiving(Update, Error);
             Console.ReadLine();
@@ -31,21 +32,26 @@ namespace Bot1
 
             if (message.Text != null)
             {
-
                 if (!userState.ContainsKey(message.Chat.Id))
                 {
                     userState[message.Chat.Id] = State.WaitingStart;
                     await botClient.SendTextMessageAsync(message.Chat.Id, "Введите команду /start");
                     return;
                 }
-               
+
                 await HandleStart(botClient, update, message);
                 await StudentTeacher(botClient, update, message);
+                await StudentTeacherDelete(botClient, update, message);
                 await Student.RegistrationStudent(botClient, update, userState);
                 await Student.SendInformationStudent(botClient, update, userState);
                 await Teacher.RegistrationTeacher(botClient, update, userState);
                 await Teacher.SendInformationTeacher(botClient, update, userState);
+                await BotOnMessage(botClient, update, message);
+                await FindTeacher(botClient, update, message);
+                await CheckAccountT(botClient, update, message);
+                await CheckAccountS(botClient, update, message);
                 
+
                 if (message.Text == "Информация о проекте" && userState[message.Chat.Id] == State.WaitingButton) // Информация о проекте
                 {
                     await botClient.SendTextMessageAsync(message.Chat.Id, $"Бот \"Репетиторы здесь!\" был создан для поиска репетитора по всей стране.\n Очное и дистанционное образование уверенно использется в нашей жизни, поэтому Мы собираем преподавателей из разных сфер в одном месте.\n\n 🔥 Удобный поиск репетиторов с различными форматами обучения. \n 🔥 Помощь в написании контрольных и самостоятельных работ. \n 🔥 Проверенные репетиторы со всей страны.");
@@ -66,18 +72,58 @@ namespace Bot1
         {
             if (message.Text == "/start" && userState[message.Chat.Id] == State.WaitingStart)
             {
-                var replyKeyboard = new ReplyKeyboardMarkup(
+                var tableName = Database.CheckUser(botClient, message);
+
+                if (tableName != null)
+                {
+                    if (tableName == "teachers")
+                    {
+                        var replyKeyboard = new ReplyKeyboardMarkup(
+                            new[]
+                            {
+                                new KeyboardButton[] {"Удалить аккаунт"},
+                                new KeyboardButton[] { "Информация о проекте", "Поделиться ботом" },
+                                new KeyboardButton[] { "Просмотр Вашего аккаунта" }
+                            })
+                        {
+                            ResizeKeyboard = true
+                        };
+                        await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
+                        userState[update.Message.Chat.Id] = State.WaitingButton;
+                        return;
+                    }
+
+                    if (tableName == "students")
+                    {
+                        var replyKeyboard = new ReplyKeyboardMarkup(
+                            new[]
+                            {
+                                new KeyboardButton[] { "Найти преподавателя" },
+                                new KeyboardButton[] { "Удалить аккаунт", "Поделиться ботом" },
+                                new KeyboardButton[] { "Просмотр аккаунта" }
+                            })
+                        {
+                            ResizeKeyboard = true
+                        };
+                        await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
+                        userState[update.Message.Chat.Id] = State.WaitingButton;
+                        return;
+                    }
+                }
+                else
+                {
+                    var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
                     {
-                        new KeyboardButton[] {"Регистрация", "Авторизация" },
-                        new KeyboardButton[] {"Информация о проекте", "Поделиться ботом" }
+                        new KeyboardButton[] {"Регистрация", "Информация о проекте" }
                     })
-                {
-                    ResizeKeyboard = true
-                };
-                await botClient.SendTextMessageAsync(message.Chat.Id, $"Здравствуйте, {message.Chat.Username}! Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
-                userState[update.Message.Chat.Id] = State.WaitingButton;
-                return;
+                    {
+                        ResizeKeyboard = true
+                    };
+                    await botClient.SendTextMessageAsync(message.Chat.Id, $"Здравствуйте, {message.Chat.Username}! Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
+                    userState[update.Message.Chat.Id] = State.WaitingButton;
+                    return;
+                }     
             }
         }
 
@@ -85,12 +131,10 @@ namespace Bot1
         {
             if (message.Text != "Регистрация" || userState[message.Chat.Id] != State.WaitingButton)
             {
-                return;   
+                return;
             }
 
-            var tableName = Database.CheckUser(botClient, message);
-
-            if (tableName is null)
+            if (message.Text == "Регистрация" && userState[message.Chat.Id] == State.WaitingButton)
             {
                 var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
@@ -104,16 +148,163 @@ namespace Bot1
                 userState[update.Message.Chat.Id] = State.WaitingButton;
                 return;
             }
-            else
+
+        }
+
+        async static Task StudentTeacherDelete(ITelegramBotClient botClient, Update update, Message message)
+        {
+            
+            if (message.Text != "Удалить аккаунт" || userState[message.Chat.Id] != State.WaitingButton)
             {
-                await botClient.SendTextMessageAsync(message.Chat.Id, $"Вы уже зарегистрированы как {tableName}"); 
+                return;
+            }
+
+            var tableName = Database.CheckUser(botClient, message);
+
+            if (tableName != null)
+            {
+                var tableNameDel = Database.DeleteUser(botClient, message);
+                if (tableNameDel != null)
+                {
+                    await botClient.SendTextMessageAsync(message.Chat.Id, $"Вы успешно удалили аккаунт");
+
+                    var replyKeyboard = new ReplyKeyboardMarkup(
+                    new[]
+                    {
+                        new KeyboardButton[] {"Регистрация", "Информация о проекте" }
+                    })
+                    {
+                        ResizeKeyboard = true
+                    };
+
+                    await botClient.SendTextMessageAsync(message.Chat.Id, $"Выберите соответствующую кнопку:", replyMarkup: replyKeyboard);
+                    userState[update.Message.Chat.Id] = State.WaitingButton;
+                    return;
+                }
+            }
+
+        }
+
+        async static Task FindTeacher(ITelegramBotClient botClient, Update update, Message message) // Поиск преподавателей
+        {
+            if (message.Text == "Найти преподавателя")
+            {
+                var tupleOfLists = Database.ListTeachers(botClient);
+                List<string> tg_name_t = tupleOfLists.Item1;
+                List<string> name_t = tupleOfLists.Item2;
+                List<string> subject = tupleOfLists.Item3;
+                List<TimeSpan> fix_time = tupleOfLists.Item4;
+                List<int> price = tupleOfLists.Item5;
+                List<string> description_t = tupleOfLists.Item6;
+
+                string allMessages = "";
+
+                for (int i=0; i < tg_name_t.Count; i++)
+                {
+                    allMessages += $"Тelegram Name преподавателя: {tg_name_t[i]} \nИмя и фамилия преподавателя: {name_t[i]} \nПредмет: {subject[i]} \nВремя занятия (Часы:минуты:секунды): {fix_time[i]} \nЦена: {price[i]} \nОписание: {description_t[i]}" + "\n\n";
+
+                }
+
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Список преподавателей:");
+                await botClient.SendTextMessageAsync(message.Chat.Id, allMessages);
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Напишите @Имя_пользователя *сообщение преподавателю* для связи с преподавателем.");
+                userState[update.Message.Chat.Id] = State.WaitingMessage;
+                return;
+            }
+
+
+        }
+        
+        async static Task CheckAccountT(ITelegramBotClient botClient, Update update, Message message) // Просмотр аккаунта (Преподавателя)
+        {
+            if (message.Text == "Просмотр Вашего аккаунта")
+            {
+                var tupleOfLists = Database.CheckTAccount(botClient, message);
+                List<string> tg_name_t = tupleOfLists.Item1;
+                List<string> name_t = tupleOfLists.Item2;
+                List<string> subject = tupleOfLists.Item3;
+                List<TimeSpan> fix_time = tupleOfLists.Item4;
+                List<int> price = tupleOfLists.Item5;
+                List<string> description_t = tupleOfLists.Item6;
+
+                string allMessages = "";
+
+                for (int i = 0; i < tg_name_t.Count; i++)
+                {
+                    allMessages += $"Тelegram Name: {tg_name_t[i]} \nИмя и фамилия: {name_t[i]} \nПредмет: {subject[i]} \nВремя занятия (Часы:минуты:секунды): {fix_time[i]} \nЦена: {price[i]} \nОписание: {description_t[i]}";
+
+                }
+
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Ваш аккаунт");
+                await botClient.SendTextMessageAsync(message.Chat.Id, allMessages);
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Если хотите что-то изменить, то нажмите кнопку \n|Удалить аккаунт|. \nДалее заново нажмите кнопку \n|Регистарция|");
                 userState[update.Message.Chat.Id] = State.WaitingButton;
                 return;
             }
         }
 
-    async static Task Error(ITelegramBotClient botClient, Exception exception, CancellationToken token)
+
+
+        async static Task CheckAccountS(ITelegramBotClient botClient, Update update, Message message) // Просмотр аккаунта (Ученика)
         {
+            if (message.Text == "Просмотр аккаунта")
+            {
+                var tupleOfLists = Database.CheckSAccount(botClient, message);
+                List<string> tg_name_s = tupleOfLists.Item1;
+                List<string> name_s = tupleOfLists.Item2;
+                List<string> telephone_number_s = tupleOfLists.Item3;
+                List<string> description_s = tupleOfLists.Item4;
+
+                string allMessages = "";
+
+                for (int i = 0; i < tg_name_s.Count; i++)
+                {
+                    allMessages += $"Тelegram Name: {tg_name_s[i]} \nИмя и фамилия: {name_s[i]} \nНомер телефона: {telephone_number_s[i]}\nОписание: {description_s[i]}";
+
+                }
+
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Ваш аккаунт");
+                await botClient.SendTextMessageAsync(message.Chat.Id, allMessages);
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Если хотите что-то изменить, то нажмите кнопку \n|Удалить аккаунт| \nДалее заново нажмите кнопку \n|Регистарция|");
+                userState[update.Message.Chat.Id] = State.WaitingButton;
+                return;
+            }
+        }
+
+        async static Task BotOnMessage(ITelegramBotClient botClient, Update update, Message message)
+        {
+
+            if (userState[update.Message.Chat.Id] == State.WaitingMessage)
+            {
+
+                string[] messageParts = message.Text.Split(' ');
+                
+                if (messageParts.Length >= 2)
+                {
+                    string username = messageParts[0];
+                    string message2 = String.Join(" ", messageParts.Skip(1).ToArray());
+
+                    long chatId = Database.GetChatIdByUsername(username);
+                    if (chatId != 0)
+                    {
+                        await botClient.SendTextMessageAsync(chatId, $"Message from {message.From.Username}: {message2}");
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(message.Chat.Id, "User not found");
+                    }
+                }
+                userState[update.Message.Chat.Id] = State.WaitingButton;
+            }
+            
+        }
+
+
+
+
+        async static Task Error(ITelegramBotClient botClient, Exception exception, CancellationToken token)
+        {
+            Console.WriteLine(exception.Message);
             
         }
     }
@@ -134,6 +325,7 @@ namespace Bot1
         WaitingDataBaseTeacher,
         WaitingSubject,
         WaitingFixTime,
-        WaitingPrice
+        WaitingPrice,
+        WaitingMessage
     }
 }

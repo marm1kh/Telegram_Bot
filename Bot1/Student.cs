@@ -80,8 +80,9 @@ namespace Bot1
                 var replyKeyboard = new ReplyKeyboardMarkup(
                     new[]
                     {
-                        new KeyboardButton[] {"Регистрация", "Авторизация" },
-                        new KeyboardButton[] {"Информация о проекте", "Поделиться ботом" }
+                        new KeyboardButton[] { "Найти преподавателя" },
+                        new KeyboardButton[] { "Удалить аккаунт", "Поделиться ботом" },
+                        new KeyboardButton[] { "Просмотр аккаунта" }
                     })
                 {
                     ResizeKeyboard = true
@@ -91,6 +92,7 @@ namespace Bot1
                 return;
             }
         }
+
     }
 
     class StudentInfo
