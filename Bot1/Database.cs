@@ -222,7 +222,7 @@ namespace Bot1
             return new Tuple<List<string>, List<string>, List<string>, List<string>>(tg_name_s, name_s, telephone_number_s, description_s);
         }
 
-        public static int GetChatIdByUsername(string username)
+        public static long GetChatIdByUsername(string username)
         {
             using (var conn = new NpgsqlConnection(connectionString))
             {

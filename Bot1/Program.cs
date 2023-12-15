@@ -276,15 +276,21 @@ namespace Bot1
 
             if (userState[update.Message.Chat.Id] == State.WaitingMessage)
             {
+                if (message.Text == "/exit")
+                {
+                    userState[update.Message.Chat.Id] = State.WaitingButton;
+                    return;
+                }
 
                 string[] messageParts = message.Text.Split(' ');
+                
                 
                 if (messageParts.Length >= 2)
                 {
                     string username = messageParts[0];
                     string message2 = String.Join(" ", messageParts.Skip(1).ToArray());
 
-                    long chatId = Database.GetChatIdByUsername(username);
+                    long chatId =  Database.GetChatIdByUsername(username);
                     if (chatId != 0)
                     {
                         await botClient.SendTextMessageAsync(chatId, $"Message from {message.From.Username}: {message2}");
@@ -294,7 +300,7 @@ namespace Bot1
                         await botClient.SendTextMessageAsync(message.Chat.Id, "User not found");
                     }
                 }
-                userState[update.Message.Chat.Id] = State.WaitingButton;
+                userState[update.Message.Chat.Id] = State.WaitingMessage;
             }
             
         }
