@@ -267,6 +267,62 @@ namespace Bot1
                 }
             }
         }
+
+        public static async Task StudentData(string username, Message message) // Просмотр аккаунта ученика
+        {
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand cmd = new NpgsqlCommand("call connection_s_t (@tg_name_te, @tg_name_st);", connection))
+                {
+                    cmd.Parameters.AddWithValue("tg_name_te", username);
+                    cmd.Parameters.AddWithValue("tg_name_st", "@" + message.Chat.Username);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            return;
+        }
+
+        public static Tuple<List<string>, List<string>, List<int>, List<string>> ListStudents(Message message)
+        {
+            string sql = @"select s.tg_name_s, s.name_s, s.class, s.telephone_number_s
+                            from students s left join students_teachers st 
+                            on s.id_s = st.id_s
+                            left join teachers te
+                            on st.id_t = te.id_t 
+                            where te.tg_name_t = @tg_name_t;";
+
+            List<string> tg_name_s = new List<string>();
+            List<string> name_s = new List<string>();
+            List<int> class_s = new List<int>();
+            List<string> telephone_number_s = new List<string>();
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.AddWithValue("tg_name_t", "@" + message.Chat.Username);
+                    NpgsqlDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+
+                    if (reader.HasRows)
+                    {
+
+                        while (reader.Read())
+                        {
+                            tg_name_s.Add(reader.GetString(0));
+                            name_s.Add(reader.GetString(1));
+                            class_s.Add(reader.GetInt32(2));
+                            telephone_number_s.Add(reader.GetString(3));
+                        }
+                    }
+                }
+            }
+            return new Tuple<List<string>, List<string>, List<int>, List<string>>(tg_name_s, name_s, class_s, telephone_number_s);
+        }
     }
 }
 

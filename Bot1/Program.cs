@@ -218,7 +218,22 @@ namespace Bot1
         {
             if (message.Text == "Написать ученику")
             {
-                await botClient.SendTextMessageAsync(message.Chat.Id, "Напишите @Имя_пользователя *сообщение ученику* для связи с преподавателем. Для возвращения в главное меню напишите /exit", replyMarkup: new ReplyKeyboardRemove());
+                var AList = Database.ListStudents(message);
+                List<string> tg_name_s = AList.Item1;
+                List<string> name_s = AList.Item2;
+                List<int> class_s = AList.Item3;
+                List<string> telephone_number_s = AList.Item4;
+
+                string allMessages = "";
+
+                for (int i = 0; i < tg_name_s.Count; i++)
+                {
+                    allMessages += $"Тelegram Name: {tg_name_s[i]} \nИмя и фамилия: {name_s[i]} \nКласс: {class_s[i]}\nНомер телефона: {telephone_number_s[i]}";
+
+                }
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Список учеников:");
+                await botClient.SendTextMessageAsync(message.Chat.Id, allMessages);
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Напишите @Имя_пользователя *сообщение ученику* для связи с учеником. Для возвращения в главное меню напишите /exit", replyMarkup: new ReplyKeyboardRemove());
                 userState[update.Message.Chat.Id] = State.WaitingMessageTeacher;
                 return;
             }
@@ -351,6 +366,8 @@ namespace Bot1
                     string message2 = String.Join(" ", messageParts.Skip(1).ToArray());
 
                     long chatId =  Database.GetChatIdByUsernameTeachers(username);
+                    Database.StudentData(username, message);
+
                     if (chatId != 0)
                     {
                         await botClient.SendTextMessageAsync(chatId, $"Message from {message.From.Username}: {message2}");
