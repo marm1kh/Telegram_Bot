@@ -287,12 +287,7 @@ namespace Bot1
 
         public static Tuple<List<string>, List<string>, List<int>, List<string>> ListStudents(Message message)
         {
-            string sql = @"select s.tg_name_s, s.name_s, s.class, s.telephone_number_s
-                            from students s left join students_teachers st 
-                            on s.id_s = st.id_s
-                            left join teachers te
-                            on st.id_t = te.id_t 
-                            where te.tg_name_t = @tg_name_t;";
+            string sql = @"select * from table_students(@tg_name_t);";
 
             List<string> tg_name_s = new List<string>();
             List<string> name_s = new List<string>();
